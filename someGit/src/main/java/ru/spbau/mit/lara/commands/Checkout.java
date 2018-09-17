@@ -3,6 +3,7 @@ package ru.spbau.mit.lara.commands;
 import ru.spbau.mit.lara.Git;
 import ru.spbau.mit.lara.Shell;
 import ru.spbau.mit.lara.exceptions.ExitException;
+import ru.spbau.mit.lara.exceptions.GitException;
 
 import java.io.IOException;
 import java.nio.file.Path;
@@ -36,7 +37,12 @@ public class Checkout implements Command {
             gitStorage.put(rootDir, new Git(rootDir));
         }
         Git git = gitStorage.get(rootDir);
-        Git.GitTree currentCommit = git.getRevision(revision);
+        Git.GitTree currentCommit;
+        try {
+            currentCommit = git.getRevision(revision);
+        } catch(GitException e) {
+            return "Error: invalid revision number";
+        }
         Path commitDir = currentCommit.getDirPath();
         try {
             Shell.copyFilesRelatively(commitDir, rootDir);

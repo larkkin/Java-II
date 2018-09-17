@@ -1,5 +1,6 @@
 package ru.spbau.mit.lara;
 
+import org.apache.commons.io.FileUtils;
 import ru.spbau.mit.lara.exceptions.GitException;
 
 import java.io.BufferedReader;
@@ -80,15 +81,20 @@ public class Git {
     public void undoCommit() {
         GitTree prev = head.parent;
         prev.next = null;
-        head.rootDir.toFile().delete();
+        try {
+            Files.walk(head.getDirPath())
+                    .sorted(Comparator.reverseOrder())
+                    .map(Path::toFile)
+                    .forEach(File::delete);
+        } catch (IOException e) {}
         head = prev;
     }
     public Path getHeadDirPath() {
         return head.getDirPath();
     }
-    public GitTree getRevision(int revisionNumber) {
+    public GitTree getRevision(int revisionNumber) throws GitException {
         if (revisionNumber < 1 || revisionNumber > head.currentCommitId) {
-            return null;
+            throw new GitException();
         }
         GitTree currentCommit = head;
         while (currentCommit != null && currentCommit.currentCommitId != revisionNumber) {
