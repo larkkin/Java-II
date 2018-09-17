@@ -117,9 +117,6 @@ public class Shell {
             System.out.println("!!->   " + p.toString());
             Path oldPath = Paths.get(srcDir.toString(), p.toString());
             Path newPath = Paths.get(dstDir.toString(), p.toString());
-            System.out.println("src file: " + oldPath.toString());
-            System.out.println("dst file: " + newPath.toString());
-            System.out.println(".");
             Files.copy(oldPath, newPath);
         };
     }

@@ -30,7 +30,6 @@ public class Commit implements Command {
         for (String pathString : files) {
             Path currentRootDir;
             try {
-//                System.out.println("getting root from " + pathString + "...");
                 currentRootDir = Shell.getRoot(pathString);
             } catch (IOException e) {
                 return "Something is wrong with one of the files";
@@ -45,15 +44,12 @@ public class Commit implements Command {
         }
         final Path rootDir = preRootDir;
         if (!gitStorage.containsKey(rootDir)) {
-//            System.out.println("here: " + rootDir);
             gitStorage.put(rootDir, new Git(rootDir));
         }
         Git git = gitStorage.get(rootDir);
         try {
-            System.out.println(git.getHeadDirPath() + "fds1");
             git.commit(message);
             Path dirPath = git.getHeadDirPath();
-            System.out.println(git.getHeadDirPath() + "fds2");
             Shell.copyFilesRelatively(files, rootDir, dirPath);
         } catch (IOException e) {
             git.undoCommit();
