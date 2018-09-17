@@ -16,6 +16,8 @@ import java.io.InputStreamReader;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import static java.nio.file.StandardCopyOption.REPLACE_EXISTING;
+
 /**
  * It is the main class that receives the input line
  * from stdin, proceeds it and executes the command
@@ -117,11 +119,13 @@ public class Shell {
             System.out.println("!!->   " + p.toString());
             Path oldPath = Paths.get(srcDir.toString(), p.toString());
             Path newPath = Paths.get(dstDir.toString(), p.toString());
-            Files.copy(oldPath, newPath);
+            Files.copy(oldPath, newPath, REPLACE_EXISTING);
         };
     }
     public static void copyFilesRelatively(Path srcDir, Path dstDir) throws IOException {
         List<String> files = Arrays.stream(srcDir.toFile().listFiles())
+                .filter(f -> !f.toPath().getName(f.toPath().getNameCount() - 1).toString().startsWith("."))
+                .peek(f -> System.out.println(f.toString() + "peek"))
                 .map(File::toString)
                 .collect(Collectors.toList());
         copyFilesRelatively(files, srcDir, dstDir);
