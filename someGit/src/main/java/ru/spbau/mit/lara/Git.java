@@ -98,7 +98,6 @@ public class Git {
     }
     public List<String> log(int revisionNumber) {
         List<String> res = new ArrayList<>();
-//        System.out.println(String.valueOf(head.currentCommitId ) + " gg2");
         if (revisionNumber < 1) {
             revisionNumber = 1;
         }
@@ -106,7 +105,7 @@ public class Git {
             return res;
         }
         GitTree currentCommit = head;
-        while (currentCommit != null && currentCommit.currentCommitId != revisionNumber) {
+        while (currentCommit != null && currentCommit.currentCommitId >= revisionNumber) {
             res.add(currentCommit.time + ", " + currentCommit.message);
             currentCommit = currentCommit.parent;
         }
