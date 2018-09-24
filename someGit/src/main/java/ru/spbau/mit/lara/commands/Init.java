@@ -7,12 +7,24 @@ import ru.spbau.mit.lara.Shell;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.lang.System;
 
 public class Init implements Command {
+    public static final String gitDir = ".augit";
+    private static final String indexDir = Paths.get(".augit", ".gitindex").toString();
+    public static final String gitlist = ".augitlist";
+
+    public static String getCommitDir(int i) {
+        return Paths.get(gitDir, "commit_" + String.valueOf(i)).toString();
+    }
+    public static Path getIndexDir(Path rootDir) {
+        return Paths.get(rootDir.toString(), indexDir);
+    }
+
     public String execute(List<String> tokens) throws ExitException {
         String destinationDir;
         if (tokens.size() < 1) {
@@ -42,14 +54,19 @@ public class Init implements Command {
         }
     }
 
-    public boolean initDir(String path) throws InitException {
-        File dir = new File(path + "/.augit");
+    private boolean initDir(String path) throws InitException {
+        File dir = new File(Paths.get(path, gitDir).toString());
         boolean created = dir.mkdirs();
         if (!dir.isDirectory()) {
             throw new InitException();
         }
+        System.out.println(Paths.get(path, indexDir).toString());
+        File dirIndex = new File(Paths.get(path, indexDir).toString());
+        boolean created_index = dirIndex.mkdirs();
+        if (!dirIndex.isDirectory()) {
+            throw new InitException();
+        }
         return created;
     }
-    // To versions of echo command. Can be used to echo the values of several variables simultaneously
 }
 
