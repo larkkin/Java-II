@@ -40,6 +40,11 @@ public class Checkout implements Command {
         Git.GitTree currentCommit;
         try {
             currentCommit = git.getRevision(revision);
+            try {
+                git.copyFilesFromCommit(currentCommit, rootDir);
+            } catch (IOException e) {
+                return "Error: got IOException while checking out commit " + String.valueOf(revision);
+            }
         } catch(GitException e) {
             return "Error: invalid revision number";
         }

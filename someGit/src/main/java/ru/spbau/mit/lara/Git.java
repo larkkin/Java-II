@@ -1,21 +1,21 @@
 package ru.spbau.mit.lara;
 
-import org.apache.commons.io.FileUtils;
+import ru.spbau.mit.lara.commands.Init;
 import ru.spbau.mit.lara.exceptions.GitException;
 
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.IOException;
 import java.io.File;
-import java.lang.reflect.Array;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Comparator;
-import java.util.List;
+import java.util.*;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+
+import static java.nio.file.StandardCopyOption.REPLACE_EXISTING;
 
 public class Git {
     private GitTree start;
@@ -27,16 +27,20 @@ public class Git {
         start = new GitTree(rootDir);
         head = start;
         int currentCommitId = head.currentCommitId;
-        Path gitDir = Paths.get(rootDir.toString(), ".augit");
-        List<File> files = Arrays.asList(gitDir.toFile().listFiles());
-        files.sort(Comparator.comparing(f -> Integer.valueOf(f
-                .toPath()
-                .getName(f.toPath().getNameCount() - 1)
-                .toString()
-                .substring(7))));
+        Path gitDir = Paths.get(rootDir.toString(), Init.gitDir);
+        List<File> files = Stream.of(gitDir.toFile().listFiles())
+                .map(f -> gitDir.relativize(f.toPath()))
+                .filter(p -> p.toString().startsWith("commit"))
+                .sorted(Comparator.comparing(p -> Integer.valueOf(p
+                        .getName(p.getNameCount() - 1)
+                        .toString()
+                        .substring(7))))
+                .map(Path::toFile)
+                .collect(Collectors.toList());
         for (File dir : files) {
-            Path path = dir.toPath();
-            if (path.getName(path.getNameCount() - 1).toString().startsWith("commit_") && dir.isDirectory()) {
+            Path path = Paths.get(gitDir.toString(), dir.toString());
+            dir = path.toFile();
+            if (dir.isDirectory()) {
                 currentCommitId++;
                 GitTree currentCommit = new GitTree(rootDir);
                 currentCommit.currentCommitId = currentCommitId;
@@ -63,14 +67,15 @@ public class Git {
 //            rootDir = rootDirPath;
 //        }
 //    }
-    public void commit(String message) throws IOException {
+    public void preCommit(String message) throws IOException {
         head.next = new GitTree(head);
         head.next.parent = head;
         head.next.currentCommitId = head.currentCommitId + 1;
         head.next.time = LocalDateTime.now().toString();
         head.next.message = message;
         Path dirPath = head.next.getDirPath();
-        dirPath.toFile().mkdir();
+        System.out.println("==== " + dirPath.toString());
+        dirPath.toFile().mkdirs();
         try (BufferedWriter writer = Files.newBufferedWriter(Paths.get(dirPath.toString(), ".augitinfo"))) {
             writer.write(head.next.time);
             writer.newLine();
@@ -78,9 +83,50 @@ public class Git {
         }
         head = head.next;
     }
+    public void postCommit(Index index) throws IOException {
+        Path gitlistPath = Paths.get(rootDir.toString(), Init.getCommitDir(head.currentCommitId), Init.gitlist);
+        try (BufferedWriter writer = Files.newBufferedWriter(gitlistPath)) {
+            Set<Path> files = Files.walk(head.getDirPath())
+                    .map(Path::toAbsolutePath)
+                    .collect(Collectors.toSet());
+            for (Path p : files) {
+                writer.write(head.getDirPath().relativize(p).toString());
+                writer.newLine();
+            }
+            if (head.parent == start) {
+                return;
+            }
+            Map<Path, Integer> diffHeadPrev = index.compareDirs(head.getDirPath(), head.parent.getDirPath());
+            for (Map.Entry<Path, Integer> e : diffHeadPrev.entrySet()) {
+                if (e.getValue() == Index.equal) {
+                    Files.delete(Paths.get(head.parent.getDirPath().toString(), e.getKey().toString()));
+                }
+            }
+        }
+        }
     public void undoCommit() {
         GitTree prev = head.parent;
         prev.next = null;
+        if (prev != start) {
+            String line;
+            Set<Path> prevFiles = new HashSet<>();
+            Path gitlistPath = Paths.get(rootDir.toString(), Init.getCommitDir(head.parent.currentCommitId), Init.gitlist);
+            try (BufferedReader br = Files.newBufferedReader(gitlistPath);) {
+                while ((line = br.readLine()) != null) {
+                    Path path = new File(line).toPath();
+                    prevFiles.add(path);
+                }
+                Files.walk(prev.getDirPath())
+                        .sorted(Comparator.reverseOrder())
+                        .map(prev.getDirPath()::relativize)
+                        .filter(prevFiles::contains)
+                        .forEach(prevFiles::remove);
+                Shell.copyFilesRelatively(
+                        prevFiles.stream().map(Path::toString).collect(Collectors.toList()),
+                        head.getDirPath(),
+                        prev.getDirPath());
+            } catch (IOException e) {}
+        }
         try {
             Files.walk(head.getDirPath())
                     .sorted(Comparator.reverseOrder())
@@ -101,6 +147,40 @@ public class Git {
             currentCommit = currentCommit.parent;
         }
         return currentCommit;
+    }
+    public void copyFilesFromCommit(GitTree revision, Path dir) throws IOException {
+        int currentCommitId = revision.currentCommitId;
+
+        Set<Path> filesLeft= new HashSet<>();
+        Path gitlistPath = Paths.get(revision.rootDir.toString(), Init.getCommitDir(currentCommitId), Init.gitlist);
+        try (BufferedReader br = Files.newBufferedReader(gitlistPath);) {
+            String line;
+            while ((line = br.readLine()) != null) {
+                System.out.println("in list:\t " + line);
+                Path path = new File(line).toPath();
+                if (path.toString().startsWith(".") || path.toString().isEmpty()) {
+                    continue;
+                }
+                filesLeft.add(path);
+            }
+        } catch (IOException e) {}
+        filesLeft.stream().forEach(p -> System.out.println(p.toString()));
+        while (!filesLeft.isEmpty() && revision != null) {
+            Set<Path> filesInDir = Files.walk(revision.getDirPath())
+                    .map(revision.getDirPath()::relativize)
+                    .collect(Collectors.toSet());
+            for (Path p : filesInDir) {
+                if (filesLeft.contains(p)) {
+                    Path oldPath = Paths.get(revision.getDirPath().toString(), p.toString());
+                    Path newPath = Paths.get(dir.toString(), p.toString());
+                    System.out.println("old " + oldPath.toString());
+                    System.out.println("new " + newPath.toString());
+                    Files.copy(oldPath, newPath, REPLACE_EXISTING);
+                    filesLeft.remove(p);
+                }
+            }
+            revision = revision.next;
+        }
     }
     public List<String> log(int revisionNumber) {
         List<String> res = new ArrayList<>();
@@ -124,6 +204,10 @@ public class Git {
         while (head.currentCommitId != revisionNumber) {
             undoCommit();
         }
+    }
+
+    public int getCurrentCommitId() {
+        return head.currentCommitId;
     }
 
 
@@ -152,7 +236,7 @@ public class Git {
         }
 
         public Path getDirPath() {
-            return Paths.get(rootDir.toString(), ".augit", "commit_" + String.valueOf(currentCommitId));
+            return Paths.get(rootDir.toString(), Init.getCommitDir(currentCommitId));
         }
 
 
