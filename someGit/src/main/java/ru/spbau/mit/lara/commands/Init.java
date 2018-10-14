@@ -8,8 +8,6 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.lang.System;
 
@@ -17,12 +15,16 @@ public class Init implements Command {
     public static final String gitDir = ".augit";
     private static final String indexDir = Paths.get(".augit", ".gitindex").toString();
     public static final String gitlist = ".augitlist";
+    public static final String branch = "branch_";
 
-    public static String getCommitDir(int i) {
-        return Paths.get(gitDir, "commit_" + String.valueOf(i)).toString();
+    public static String getCommitDir(int i, String branchName) {
+        return Paths.get(gitDir, branch + branchName, "commit_" + String.valueOf(i)).toString();
     }
     public static Path getIndexDir(Path rootDir) {
         return Paths.get(rootDir.toString(), indexDir);
+    }
+    public static Path getGitDir(Path rootDir) {
+        return Paths.get(rootDir.toString(), gitDir);
     }
 
     public String execute(List<String> tokens) throws ExitException {

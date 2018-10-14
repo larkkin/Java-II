@@ -9,7 +9,6 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -69,6 +68,7 @@ public class Status implements Command {
         diffToLists(diffIndexHead, createdAddedFiles, changedAddedFiles, removedAddedFiles);
 
         List<String> res_list = new ArrayList<>();
+        res_list.add("On branch " + git.getHead().getBranch() + ":\n\n");
         res_list.add("==================");
         res_list.add("New added files:");
         res_list.add("------------------");
@@ -107,7 +107,7 @@ public class Status implements Command {
         }
         return String.join("\n", res_list);
     }
-    private void diffToLists(Map<Path, Integer> diff, 
+    public static void diffToLists(Map<Path, Integer> diff,
                              List<Path> createdFiles, 
                              List<Path> changedFiles, 
                              List<Path> removedFiles) {

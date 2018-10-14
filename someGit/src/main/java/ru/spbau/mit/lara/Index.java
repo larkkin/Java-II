@@ -12,10 +12,10 @@ import java.util.stream.Collectors;
 
 public class Index {
 
-    public static int onlyFirst = 1;
-    public static int onlySecond = -1;
-    public static int equal = 0;
-    public static int changed = 2;
+    public static final int onlyFirst = 1;
+    public static final int onlySecond = -1;
+    public static final int equal = 0;
+    public static final int changed = 2;
     private Map<Path, List<Path>> dirs;
 
     public Index() {

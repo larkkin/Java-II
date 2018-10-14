@@ -3,24 +3,27 @@ package ru.spbau.mit.lara.commands;
 import ru.spbau.mit.lara.Git;
 import ru.spbau.mit.lara.Index;
 import ru.spbau.mit.lara.Shell;
-import ru.spbau.mit.lara.exceptions.ExitException;
 
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
 
-public class Commit implements Command {
+public class Branch implements Command {
     private Map<Path, Git> gitStorage;
     private Index index;
 
-    public Commit(Map<Path, Git> gitStorage, Index index) {
+    public Branch(Map<Path, Git> gitStorage, Index index) {
         this.gitStorage = gitStorage;
         this.index = index;
     }
 
-    public String execute(List<String> tokens) throws ExitException {
-        String message = String.join(" ", tokens);
+    @Override
+    public String execute(List<String> tokens) {
+        if (tokens.size() < 1) {
+            return "Please specify the branch name";
+        }
+        String branchName = tokens.get(0);
         Path rootDir;
         try {
             rootDir = Shell.getRootOfDir(System.getProperty("user.dir"));
@@ -33,23 +36,12 @@ public class Commit implements Command {
         if (!gitStorage.containsKey(rootDir)) {
             gitStorage.put(rootDir, new Git(rootDir));
         }
-        try {
-            if (!noConflicts(rootDir)) {
-                return "There are some conflicts. Please, resolve them and commit your changes";
-            }
-        } catch (IOException e) {
-            return "Something is wrong with the filesystem, got IOException while scanning the working dir";
-        }
         Git git = gitStorage.get(rootDir);
         try {
-            git.preCommit(message);
-            Path dirPath = git.getHeadDirPath();
-            Shell.copyFilesRelatively(Init.getIndexDir(rootDir), dirPath);
-            git.postCommit(index);
+            git.makeBranch(branchName);;
         } catch (IOException e) {
-            git.undoCommit();
             return "Something is wrong with one of the files: caught IOExcepton while copying";
         }
-        return "Committed new revision";
+        return "Created new branch \"" + branchName + "\"";
     }
 }

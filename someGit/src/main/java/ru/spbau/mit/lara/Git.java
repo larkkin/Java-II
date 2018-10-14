@@ -20,41 +20,103 @@ import static java.nio.file.StandardCopyOption.REPLACE_EXISTING;
 public class Git {
     private GitTree start;
     private GitTree head;
+    private Map<String, GitTree> headStorage;
     private Path rootDir;
+    private static final String MASTER = "master";
 
     public Git(Path rootDir) {
         this.rootDir = rootDir;
         start = new GitTree(rootDir);
         head = start;
-        int currentCommitId = head.currentCommitId;
+        head.currentBranch = MASTER;
+        head.parent = start;
+        headStorage = new HashMap<>();
         Path gitDir = Paths.get(rootDir.toString(), Init.gitDir);
-        List<File> files = Stream.of(gitDir.toFile().listFiles())
+        headStorage.put(head.currentBranch, head);
+        List<String> branches = Stream.of(gitDir.toFile().listFiles())
                 .map(f -> gitDir.relativize(f.toPath()))
-                .filter(p -> p.toString().startsWith("commit"))
-                .sorted(Comparator.comparing(p -> Integer.valueOf(p
-                        .getName(p.getNameCount() - 1)
-                        .toString()
-                        .substring(7))))
-                .map(Path::toFile)
+                .map(Path::toString)
+                .filter(s -> s.startsWith("branch_"))
+                .map(s -> s.substring("branch_".length()))
                 .collect(Collectors.toList());
-        for (File dir : files) {
-            Path path = Paths.get(gitDir.toString(), dir.toString());
-            dir = path.toFile();
-            if (dir.isDirectory()) {
-                currentCommitId++;
-                GitTree currentCommit = new GitTree(rootDir);
-                currentCommit.currentCommitId = currentCommitId;
-                try (BufferedReader br = Files.newBufferedReader(Paths.get(path.toAbsolutePath().toString(),
-                                                            ".augitinfo"))) {
-                    currentCommit.time = br.readLine();
-                    currentCommit.message = br.readLine();
-                } catch (IOException e) {
-                    return;
+        List<ParentEntry> parentsToAdd = new ArrayList<>();
+        for (String currentBranch : branches) {
+            Path branchDir = Paths.get(gitDir.toString(), "branch_" + currentBranch);
+            List<File> commits = Stream.of(branchDir.toFile().listFiles())
+                    .map(f -> branchDir.relativize(f.toPath()))
+                    .filter(p -> p.toString().startsWith("commit"))
+                    .sorted(Comparator.comparing(p -> Integer.valueOf(p
+                            .getName(p.getNameCount() - 1)
+                            .toString()
+                            .substring("commit_".length()))))
+                    .map(Path::toFile)
+                    .collect(Collectors.toList());
+
+            int currentCommitId = 0;
+            for (File dir : commits) {
+                Path path = Paths.get(branchDir.toString(), dir.toString());
+                dir = path.toFile();
+                if (dir.isDirectory()) {
+                    currentCommitId++;
+                    GitTree currentCommit = new GitTree(rootDir);
+                    currentCommit.currentCommitId = currentCommitId;
+                    currentCommit.currentBranch = currentBranch;
+                    int parentCommitId;
+                    String parentBranch;
+                    try (BufferedReader br = Files.newBufferedReader(Paths.get(path.toAbsolutePath().toString(),
+                            ".augitinfo"))) {
+                        currentCommit.time = br.readLine();
+                        currentCommit.message = br.readLine();
+                        parentCommitId = Integer.valueOf(br.readLine());
+                        parentBranch = br.readLine();
+                    } catch (IOException e) {
+                        return;
+                    }
+                    if (parentBranch.equals(currentBranch)) {
+                        GitTree branchHead = headStorage.get(currentBranch);
+                        currentCommit.parent = branchHead;
+                        branchHead.next = currentCommit;
+                    } else {
+                        parentsToAdd.add(new ParentEntry(currentCommitId, currentBranch, parentCommitId, parentBranch));
+                    }
+                    headStorage.put(currentBranch, currentCommit);
                 }
-                currentCommit.parent = head;
-                head.next = currentCommit;
-                head = currentCommit;
             }
+        }
+        for (ParentEntry p : parentsToAdd) {
+            GitTree commit = getNode(p.branch, p.id);
+            GitTree parent = getNode(p.parentBranch, p.parentId);
+            commit.parent = parent;
+            parent.sideChildren.add(commit);
+        }
+        head = headStorage.get(MASTER);
+    }
+
+    private GitTree getNode(String branch, int id) {
+        if (!headStorage.containsKey(branch)) {
+            return null;
+        }
+        GitTree currentCommit = headStorage.get(branch);
+        if (id > currentCommit.currentCommitId || id < 0) {
+            return null;
+        }
+        while (currentCommit.currentCommitId != id && currentCommit.parent != null) {
+            currentCommit = currentCommit.parent;
+        }
+        return currentCommit;
+    }
+
+    private static class ParentEntry {
+        int id;
+        String branch;
+        int parentId;
+        String parentBranch;
+
+        public ParentEntry(int id, String branch, int parentId, String parentBranch) {
+            this.id = id;
+            this.branch = branch;
+            this.parentId = parentId;
+            this.parentBranch = parentBranch;
         }
     }
 //    public Git(String rootDirString) {
@@ -68,23 +130,38 @@ public class Git {
 //        }
 //    }
     public void preCommit(String message) throws IOException {
-        head.next = new GitTree(head);
-        head.next.parent = head;
-        head.next.currentCommitId = head.currentCommitId + 1;
-        head.next.time = LocalDateTime.now().toString();
-        head.next.message = message;
-        Path dirPath = head.next.getDirPath();
+        GitTree new_node = new GitTree(head);
+        head.next = new_node;
+        new_node.parent = head;
+        new_node.currentCommitId = head.currentCommitId + 1;
+        new_node.currentBranch = head.currentBranch;
+        new_node.time = LocalDateTime.now().toString();
+        new_node.message = message;
+        Path dirPath = new_node.getDirPath();
         System.out.println("==== " + dirPath.toString());
         dirPath.toFile().mkdirs();
-        try (BufferedWriter writer = Files.newBufferedWriter(Paths.get(dirPath.toString(), ".augitinfo"))) {
-            writer.write(head.next.time);
-            writer.newLine();
-            writer.write(head.next.message);
-        }
-        head = head.next;
+        writeGitInfo(new_node);
+        head = new_node;
+        headStorage.put(head.currentBranch, head);
     }
+
+    private void writeGitInfo(GitTree new_node) throws IOException {
+        Path dirPath = new_node.getDirPath();
+        try (BufferedWriter writer = Files.newBufferedWriter(Paths.get(dirPath.toString(), ".augitinfo"))) {
+            writer.write(new_node.time);
+            writer.newLine();
+            writer.write(new_node.message);
+            writer.newLine();
+            writer.write(String.valueOf(new_node.parent.currentCommitId));
+            writer.newLine();
+            writer.write(new_node.parent.currentBranch);
+        }
+    }
+
     public void postCommit(Index index) throws IOException {
-        Path gitlistPath = Paths.get(rootDir.toString(), Init.getCommitDir(head.currentCommitId), Init.gitlist);
+        Path gitlistPath = Paths.get(rootDir.toString(),
+                                     Init.getCommitDir(head.currentCommitId, head.currentBranch),
+                                     Init.gitlist);
         try (BufferedWriter writer = Files.newBufferedWriter(gitlistPath)) {
             Set<Path> files = Files.walk(head.getDirPath())
                     .map(Path::toAbsolutePath)
@@ -103,14 +180,14 @@ public class Git {
                 }
             }
         }
-        }
+    }
     public void undoCommit() {
         GitTree prev = head.parent;
         prev.next = null;
         if (prev != start) {
             String line;
             Set<Path> prevFiles = new HashSet<>();
-            Path gitlistPath = Paths.get(rootDir.toString(), Init.getCommitDir(head.parent.currentCommitId), Init.gitlist);
+            Path gitlistPath = Paths.get(rootDir.toString(), Init.getCommitDir(head.parent.currentCommitId, head.parent.currentBranch), Init.gitlist);
             try (BufferedReader br = Files.newBufferedReader(gitlistPath);) {
                 while ((line = br.readLine()) != null) {
                     Path path = new File(line).toPath();
@@ -135,8 +212,50 @@ public class Git {
         } catch (IOException e) {}
         head = prev;
     }
+
+    public void makeBranch(String branchName) throws IOException {
+        GitTree new_node = new GitTree(head);
+        head.sideChildren.add(new_node);
+        new_node.parent = head;
+        new_node.currentCommitId = 1;
+        new_node.currentBranch = branchName;
+        new_node.time = LocalDateTime.now().toString();
+        new_node.message = "Created branch " + branchName;
+        headStorage.put(new_node.currentBranch, new_node);
+        Path dirPath = new_node.getDirPath();
+        System.out.println("==== " + dirPath.toString());
+        dirPath.toFile().mkdirs();
+        writeGitInfo(new_node);
+        copyFilesFromCommit(head, dirPath);
+        Path gitlistPath = Paths.get(rootDir.toString(),
+                Init.getCommitDir(new_node.currentCommitId, new_node.currentBranch),
+                Init.gitlist);
+        try (BufferedWriter writer = Files.newBufferedWriter(gitlistPath)) {
+            Set<Path> files = Files.walk(new_node.getDirPath())
+                    .map(Path::toAbsolutePath)
+                    .collect(Collectors.toSet());
+            for (Path p : files) {
+                writer.write(head.getDirPath().relativize(p).toString());
+                writer.newLine();
+            }
+        }
+    }
+
     public Path getHeadDirPath() {
         return head.getDirPath();
+    }
+    public GitTree getHead() {
+        return head;
+    }
+    public GitTree getHead(String branchName) {
+        if (headStorage.containsKey(branchName)) {
+            return headStorage.get(branchName);
+        } else {
+            return null;
+        }
+    }
+    public void setHead(GitTree newHead) {
+        head = newHead;
     }
     public GitTree getRevision(int revisionNumber) throws GitException {
         if (revisionNumber < 1 || revisionNumber > head.currentCommitId) {
@@ -150,13 +269,14 @@ public class Git {
     }
     public void copyFilesFromCommit(GitTree revision, Path dir) throws IOException {
         int currentCommitId = revision.currentCommitId;
+        String currentBranch = revision.currentBranch;
 
         Set<Path> filesLeft= new HashSet<>();
-        Path gitlistPath = Paths.get(revision.rootDir.toString(), Init.getCommitDir(currentCommitId), Init.gitlist);
+        Path gitlistPath = Paths.get(revision.rootDir.toString(), Init.getCommitDir(currentCommitId, currentBranch), Init.gitlist);
         try (BufferedReader br = Files.newBufferedReader(gitlistPath);) {
             String line;
             while ((line = br.readLine()) != null) {
-                System.out.println("in list:\t " + line);
+//                System.out.println("in list:\t " + line);
                 Path path = new File(line).toPath();
                 if (path.toString().startsWith(".") || path.toString().isEmpty()) {
                     continue;
@@ -164,9 +284,10 @@ public class Git {
                 filesLeft.add(path);
             }
         } catch (IOException e) {}
-        filesLeft.stream().forEach(p -> System.out.println(p.toString()));
+//        filesLeft.forEach(p -> System.out.println(p.toString()));
         while (!filesLeft.isEmpty() && revision != null) {
             Set<Path> filesInDir = Files.walk(revision.getDirPath())
+                    .filter(p -> p.toFile().isFile())
                     .map(revision.getDirPath()::relativize)
                     .collect(Collectors.toSet());
             for (Path p : filesInDir) {
@@ -175,6 +296,8 @@ public class Git {
                     Path newPath = Paths.get(dir.toString(), p.toString());
                     System.out.println("old " + oldPath.toString());
                     System.out.println("new " + newPath.toString());
+                    Path parentDir = newPath.getParent();
+                    parentDir.toFile().mkdirs();
                     Files.copy(oldPath, newPath, REPLACE_EXISTING);
                     filesLeft.remove(p);
                 }
@@ -184,7 +307,7 @@ public class Git {
     }
     public List<String> log(int revisionNumber) {
         List<String> res = new ArrayList<>();
-        if (revisionNumber < 1) {
+        if (revisionNumber <= 0) {
             revisionNumber = 1;
         }
         if (revisionNumber > head.currentCommitId) {
@@ -192,7 +315,7 @@ public class Git {
         }
         GitTree currentCommit = head;
         while (currentCommit != null && currentCommit.currentCommitId >= revisionNumber) {
-            res.add(currentCommit.time + ", " + currentCommit.message);
+            res.add(currentCommit.time + ",\n" + currentCommit.message + "\non branch: " + currentCommit.currentBranch);
             currentCommit = currentCommit.parent;
         }
         return res;
@@ -210,13 +333,19 @@ public class Git {
         return head.currentCommitId;
     }
 
+    public String getCurrentBranch() {
+        return head.currentBranch;
+    }
+
+
 
     public static class GitTree {
         private Path rootDir;
         private GitTree parent;
         private GitTree next;
-        private ArrayList<GitTree> sideChildren;
+        private ArrayList<GitTree> sideChildren = new ArrayList<>();
         private int currentCommitId;
+        private String currentBranch;
         private String time;
         private String message;
 
@@ -235,8 +364,18 @@ public class Git {
             }
         }
 
+        public int getCurrentCommitId() {
+            return currentCommitId;
+        }
+        public String getMessage() {
+            return message;
+        }
+        public String getBranch() {
+            return currentBranch;
+        }
+
         public Path getDirPath() {
-            return Paths.get(rootDir.toString(), Init.getCommitDir(currentCommitId));
+            return Paths.get(rootDir.toString(), Init.getCommitDir(currentCommitId, currentBranch));
         }
 
 

@@ -4,15 +4,12 @@ import ru.spbau.mit.lara.commands.*;
 import ru.spbau.mit.lara.exceptions.ContinueException;
 import ru.spbau.mit.lara.exceptions.ExitException;
 import ru.spbau.mit.lara.exceptions.ShellException;
-//import ru.spbau.mit.lara.exceptions.ShellRuntimeException;
 import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.*;
-import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStreamReader;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -45,6 +42,8 @@ public class Shell {
         commandStorage.put("add", new Add(gitStorage, index));
         commandStorage.put("remove", new Remove(gitStorage, index));
         commandStorage.put("status", new Status(gitStorage, index));
+        commandStorage.put("branch", new Branch(gitStorage, index));
+        commandStorage.put("merge", new Merge(gitStorage, index));
     }
 
 
@@ -112,10 +111,35 @@ public class Shell {
                 .map(p ->  new File(p).toPath())
                 .filter(p -> !p.getName(p.getNameCount() - 1).toString().startsWith("."))
                 .filter(p -> !p.toString().startsWith("."))
+                .peek(p -> System.out.println(p.toAbsolutePath().toString() +
+                        " | " + srcDir.toAbsolutePath().toString()))
+                .filter(p -> !p.toAbsolutePath().equals(srcDir.toAbsolutePath()))
                 .collect(Collectors.toList());
         for (Path p : relativePaths) {
             Path oldPath = Paths.get(srcDir.toString(), p.toString());
             Path newPath = Paths.get(dstDir.toString(), p.toString());
+            Path parentDir = newPath.getParent();
+            parentDir.toFile().mkdirs();
+            System.out.println("from " + oldPath);
+            System.out.println("to   " + newPath);
+            Files.copy(oldPath, newPath, REPLACE_EXISTING);
+        };
+    }
+    public static void copyFilesRelativelyWithPostfix(List<String> files,
+                                                      Path srcDir,
+                                                      Path dstDir,
+                                                      String postfix) throws IOException {
+        List<Path> relativePaths = files.stream()
+                .map(p ->  new File(p).toPath())
+                .filter(p -> !p.getName(p.getNameCount() - 1).toString().startsWith("."))
+                .filter(p -> !p.toString().startsWith("."))
+                .filter(p -> !p.toAbsolutePath().equals(srcDir.toAbsolutePath()))
+                .collect(Collectors.toList());
+        for (Path p : relativePaths) {
+            Path oldPath = Paths.get(srcDir.toString(), p.toString());
+            Path newPath = Paths.get(dstDir.toString(), p.toString() + postfix);
+            Path parentDir = newPath.getParent();
+            parentDir.toFile().mkdirs();
             System.out.println("from " + oldPath);
             System.out.println("to   " + newPath);
             Files.copy(oldPath, newPath, REPLACE_EXISTING);
@@ -125,7 +149,6 @@ public class Shell {
         List<String> files = Files.walk(srcDir)
                 .filter(p -> p.toFile().isFile())
                 .filter(p -> !p.getName(p.getNameCount() - 1).toString().startsWith("."))
-                .peek(f -> System.out.println(f.toString() + "peek"))
                 .map(srcDir::relativize)
                 .map(Path::toString)
                 .collect(Collectors.toList());
@@ -135,6 +158,7 @@ public class Shell {
         List<Path> relativePaths = files.stream()
                 .map(p ->  Paths.get(dir.toString(), p))
                 .filter(p -> !p.getName(p.getNameCount() - 1).toString().startsWith("."))
+                .filter(p -> !p.toAbsolutePath().equals(dir.toAbsolutePath()))
                 .collect(Collectors.toList());
         for (Path p : relativePaths) {
             System.out.println("removing  " + p.toString());

@@ -7,7 +7,6 @@ import ru.spbau.mit.lara.exceptions.ExitException;
 
 import java.io.IOException;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.List;
 import java.util.Map;
 
@@ -43,6 +42,13 @@ public class Add implements Command {
             preRootDir = currentRootDir;
         }
         final Path rootDir = preRootDir;
+        try {
+            if (!noConflicts(rootDir)) {
+                return "There are some conflicts. Please, resolve them and commit your changes";
+            }
+        } catch (IOException e) {
+            return "Something is wrong with the filesystem, got IOException while scanning the working dir";
+        }
         if (!gitStorage.containsKey(rootDir)) {
             gitStorage.put(rootDir, new Git(rootDir));
         }
