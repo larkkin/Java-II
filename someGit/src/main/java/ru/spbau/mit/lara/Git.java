@@ -119,16 +119,7 @@ public class Git {
             this.parentBranch = parentBranch;
         }
     }
-//    public Git(String rootDirString) {
-//        Path rootDirPath = null;
-//        try {
-//            rootDirPath = Shell.getRoot(rootDirString);
-//        } catch (IOException e) {}
-//
-//        if (rootDirPath != null) {
-//            rootDir = rootDirPath;
-//        }
-//    }
+
     public void preCommit(String message) throws IOException {
         GitTree new_node = new GitTree(head);
         head.next = new_node;
@@ -276,7 +267,6 @@ public class Git {
         try (BufferedReader br = Files.newBufferedReader(gitlistPath);) {
             String line;
             while ((line = br.readLine()) != null) {
-//                System.out.println("in list:\t " + line);
                 Path path = new File(line).toPath();
                 if (path.toString().startsWith(".") || path.toString().isEmpty()) {
                     continue;
@@ -284,7 +274,6 @@ public class Git {
                 filesLeft.add(path);
             }
         } catch (IOException e) {}
-//        filesLeft.forEach(p -> System.out.println(p.toString()));
         while (!filesLeft.isEmpty() && revision != null) {
             Set<Path> filesInDir = Files.walk(revision.getDirPath())
                     .filter(p -> p.toFile().isFile())

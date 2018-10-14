@@ -95,7 +95,6 @@ public class Shell {
                     .map(p -> p.getFileName().toString())
                     .collect(Collectors.toList());
             if (filesInDir.contains(Init.gitDir)) {
-//                System.out.println("Find VCS root at " + path.toString());
                 return path;
             }
             path = path.getParent();

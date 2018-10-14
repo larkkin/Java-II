@@ -72,7 +72,6 @@ public class Merge implements Command {
             return "Error: cannot merge a branch into itself";
         }
 
-//        Path currentBranchHeadDir = git.getHead().getDirPath();
         Path otherBranchHeadDir = git.getHead(otherBranch).getDirPath();
 
         List<Path> onlyCurrent = new ArrayList<>();
