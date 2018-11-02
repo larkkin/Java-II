@@ -66,33 +66,4 @@ public class Index {
         return res;
     }
 
-
-
-    private static class FileSystemElement {
-        private Path path;
-        private boolean isDirectory;
-        private boolean valid = false;
-        private boolean added = false;
-        private List<FileSystemElement> children;
-        private Map<Path, FileSystemElement> mapOfChildren;
-
-        public FileSystemElement(Path path, boolean addAll) {
-            this.path = path;
-            File file = new File(path.toString());
-            added = addAll;
-            if (file.isDirectory()) {
-                isDirectory = true;
-                try {
-                    mapOfChildren = Files.list(path)
-                            .collect(Collectors.toMap(
-                                    p -> ((Path) p).getName(((Path) p).getNameCount() - 1),
-                                    p -> new FileSystemElement((Path) p, addAll)));
-                } catch (IOException e) {
-                    valid = false;
-                    return;
-                }
-            }
-            valid = true;
-        }
-    }
 }

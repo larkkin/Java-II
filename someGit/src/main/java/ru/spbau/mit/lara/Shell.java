@@ -48,18 +48,6 @@ public class Shell {
 
 
     /**
-     * This function is written to avoid the duplicated code
-     */
-    private static String[] getArrayFromStringAndList(String str, List<String> lst) {
-        String[] arr = new String[1 + lst.size()];
-        arr[0] = str;
-        for (int i = 0; i < lst.size(); i++) {
-            arr[i + 1] = lst.get(i);
-        }
-        return arr;
-    }
-
-    /**
      * If we are given the command without the pipe and simply execute it
      */
     private void executeCommand(String commandName, List<String> arguments) throws ExitException {
@@ -106,30 +94,17 @@ public class Shell {
     }
 
     public static void copyFilesRelatively(List<String> files, Path srcDir, Path dstDir) throws IOException {
-        List<Path> relativePaths = files.stream()
-                .map(p ->  new File(p).toPath())
-                .filter(p -> !p.getName(p.getNameCount() - 1).toString().startsWith("."))
-                .filter(p -> !p.toString().startsWith("."))
-                .peek(p -> System.out.println(p.toAbsolutePath().toString() +
-                        " | " + srcDir.toAbsolutePath().toString()))
-                .filter(p -> !p.toAbsolutePath().equals(srcDir.toAbsolutePath()))
-                .collect(Collectors.toList());
-        for (Path p : relativePaths) {
-            Path oldPath = Paths.get(srcDir.toString(), p.toString());
-            Path newPath = Paths.get(dstDir.toString(), p.toString());
-            Path parentDir = newPath.getParent();
-            parentDir.toFile().mkdirs();
-            System.out.println("from " + oldPath);
-            System.out.println("to   " + newPath);
-            Files.copy(oldPath, newPath, REPLACE_EXISTING);
-        };
+        copyFilesRelativelyWithPostfix(files, srcDir, dstDir, "");
     }
+
     public static void copyFilesRelativelyWithPostfix(List<String> files,
                                                       Path srcDir,
                                                       Path dstDir,
                                                       String postfix) throws IOException {
         List<Path> relativePaths = files.stream()
+//                .map(p ->  new File(p).toPath().toAbsolutePath())
                 .map(p ->  new File(p).toPath())
+//                .map(srcDir::relativize)
                 .filter(p -> !p.getName(p.getNameCount() - 1).toString().startsWith("."))
                 .filter(p -> !p.toString().startsWith("."))
                 .filter(p -> !p.toAbsolutePath().equals(srcDir.toAbsolutePath()))

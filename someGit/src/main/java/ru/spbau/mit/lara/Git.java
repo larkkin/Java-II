@@ -178,7 +178,8 @@ public class Git {
         if (prev != start) {
             String line;
             Set<Path> prevFiles = new HashSet<>();
-            Path gitlistPath = Paths.get(rootDir.toString(), Init.getCommitDir(head.parent.currentCommitId, head.parent.currentBranch), Init.gitlist);
+            Path gitlistPath = Paths.get(rootDir.toString(), Init.getCommitDir(head.parent.currentCommitId,
+                    head.parent.currentBranch), Init.gitlist);
             try (BufferedReader br = Files.newBufferedReader(gitlistPath);) {
                 while ((line = br.readLine()) != null) {
                     Path path = new File(line).toPath();
@@ -345,20 +346,6 @@ public class Git {
             rootDir = other.rootDir;
         }
 
-        public GitTree getHead() {
-            if (next == null) {
-                return this;
-            } else {
-                return next.getHead();
-            }
-        }
-
-        public int getCurrentCommitId() {
-            return currentCommitId;
-        }
-        public String getMessage() {
-            return message;
-        }
         public String getBranch() {
             return currentBranch;
         }

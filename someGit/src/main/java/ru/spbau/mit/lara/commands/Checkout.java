@@ -24,7 +24,7 @@ public class Checkout implements Command {
     @Override
     public String execute(List<String> tokens) throws ExitException {
         if (tokens.size() < 1) {
-            return "Please, specify the revision";
+            return "Please, specify the revision, branch or files";
         }
         Path rootDir;
         try {
@@ -91,7 +91,7 @@ public class Checkout implements Command {
     private String checkoutBranch(String branchName, Path rootDir, Git git) {
         Git.GitTree branchHead = git.getHead(branchName);
         if (branchHead == null) {
-            return "No such branch, wtf";
+            return "No such branch, sorry";
         }
         git.setHead(branchHead);
         try {

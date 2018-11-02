@@ -36,7 +36,7 @@ public class Add implements Command {
             if (currentRootDir == null) {
                 return "Something is wrong with one of the files: cannot find VCS root";
             }
-            if (preRootDir != null && currentRootDir != preRootDir) {
+            if (preRootDir != null && !currentRootDir.equals(preRootDir)) {
                 return "Error: different VCS roots. All files must be under the same root";
             }
             preRootDir = currentRootDir;

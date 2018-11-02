@@ -49,6 +49,7 @@ public class Status implements Command {
             return "Something is wrong with the git directory, got IOException while comparing working and index dirs";
         }
         diffToLists(diffWorkingIndex, createdNonAddedFiles, changedNonAddedFiles, removedNonAddedFiles);
+
         List<Path> createdAddedFiles = new ArrayList<>();
         List<Path> changedAddedFiles = new ArrayList<>();
         List<Path> removedAddedFiles = new ArrayList<>();

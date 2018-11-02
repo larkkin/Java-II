@@ -50,7 +50,7 @@ public class GlobalTest {
     }
 
     @Test
-    public void addAndRemove() throws GitException, IOException, InterruptedException, ContinueException, ShellException, ExitException {
+    public void addRemove() throws GitException, IOException, InterruptedException, ContinueException, ShellException, ExitException {
         run("add inner_dir/1.txt inner_dir/2.txt");
         run("commit 1");
 
@@ -60,10 +60,11 @@ public class GlobalTest {
         assertEquals("rm_test\n", cat("inner_dir/2.txt"));
 
         new ProcessBuilder("bash", "-c", "echo gotanygrapes?_msg > inner_dir/2.txt").start().waitFor();
+        assertEquals("gotanygrapes?_msg\n", cat("inner_dir/2.txt"));
         run("add inner_dir/3.txt");
         run("commit 3");
         run("checkout 1");
-        assertEquals("gotanygrapes?_msg\n", cat("inner_dir/2.txt"));
+        assertEquals("", cat("inner_dir/2.txt"));
     }
 
     @Test
