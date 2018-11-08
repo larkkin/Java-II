@@ -51,6 +51,10 @@ public class Merge implements Command {
             return "Something is wrong with the filesystem, got IOException while scanning the working dir";
         }
         Git git = gitStorage.get(rootDir);
+        if (git.getHead().hasNext()) {
+            return "HEAD is not on the top of the branch. " +
+                    "Please, checkout the current branch to continue (note that modified can be overrided by checkout)";
+        }
 
         String currentBranch = git.getCurrentBranch();
         String otherBranch = tokens.get(0);

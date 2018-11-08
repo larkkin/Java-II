@@ -151,8 +151,8 @@ public class Git {
 
     public void postCommit(Index index) throws IOException {
         Path gitlistPath = Paths.get(rootDir.toString(),
-                                     Init.getCommitDir(head.currentCommitId, head.currentBranch),
-                                     Init.gitlist);
+                Init.getCommitDir(head.currentCommitId, head.currentBranch),
+                Init.gitlist);
         try (BufferedWriter writer = Files.newBufferedWriter(gitlistPath)) {
             Set<Path> files = Files.walk(head.getDirPath())
                     .map(Path::toAbsolutePath)
@@ -250,10 +250,11 @@ public class Git {
         head = newHead;
     }
     public GitTree getRevision(int revisionNumber) throws GitException {
-        if (revisionNumber < 1 || revisionNumber > head.currentCommitId) {
+        GitTree realHead = getHead(head.currentBranch);
+        if (revisionNumber < 1 || revisionNumber > realHead.currentCommitId) {
             throw new GitException();
         }
-        GitTree currentCommit = head;
+        GitTree currentCommit = realHead;
         while (currentCommit != null && currentCommit.currentCommitId != revisionNumber) {
             currentCommit = currentCommit.parent;
         }
@@ -341,6 +342,9 @@ public class Git {
 
         public GitTree(Path rootDir) {
             this.rootDir = rootDir;
+        }
+        public boolean hasNext() {
+            return next != null;
         }
         public GitTree(GitTree other) {
             rootDir = other.rootDir;

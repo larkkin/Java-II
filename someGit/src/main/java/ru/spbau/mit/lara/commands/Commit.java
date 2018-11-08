@@ -41,6 +41,10 @@ public class Commit implements Command {
             return "Something is wrong with the filesystem, got IOException while scanning the working dir";
         }
         Git git = gitStorage.get(rootDir);
+        if (git.getHead().hasNext()) {
+            return "HEAD is not on the top of the branch. " +
+                    "Please, checkout the current branch to continue (note that modified can be overrided by checkout)";
+        }
         try {
             git.preCommit(message);
             Path dirPath = git.getHeadDirPath();

@@ -105,6 +105,7 @@ public class Checkout implements Command {
         Git.GitTree currentCommit;
         try {
             currentCommit = git.getRevision(revision);
+            git.setHead(currentCommit);
             try {
                 git.copyFilesFromCommit(currentCommit, rootDir);
             } catch (IOException e) {

@@ -45,6 +45,10 @@ public class Remove implements Command {
             gitStorage.put(rootDir, new Git(rootDir));
         }
         Git git = gitStorage.get(rootDir);
+        if (git.getHead().hasNext()) {
+            return "HEAD is not on the top of the branch. " +
+                    "Please, checkout the current branch to continue (note that modified can be overrided by checkout)";
+        }
         try {
             Shell.removeFilesRelatively(tokens, Init.getIndexDir(rootDir));
         } catch (IOException e) {
