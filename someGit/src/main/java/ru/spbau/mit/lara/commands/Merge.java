@@ -75,8 +75,17 @@ public class Merge implements Command {
         if (otherBranch.equals(currentBranch)) {
             return "Error: cannot merge a branch into itself";
         }
-
         Path otherBranchHeadDir = git.getHead(otherBranch).getDirPath();
+
+        if (git.getBranchParentCommit(otherBranch) == git.getHead()) {
+            try {
+                Shell.copyFilesRelatively(otherBranchHeadDir, rootDir);
+            } catch (IOException e) {
+                return "Something is wrong with one of the files: caught IOExcepton while copying";
+            }
+            return "No conflicts present: please, commit the changes";
+        }
+
 
         List<Path> onlyCurrent = new ArrayList<>();
         List<Path> conflict = new ArrayList<>();

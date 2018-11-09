@@ -342,6 +342,18 @@ public class Git {
         return head.currentBranch;
     }
 
+    public GitTree getBranchParentCommit(String branchName) {
+        GitTree currentCommit = headStorage.get(branchName);
+        while (currentCommit != start && currentCommit.currentBranch.equals(branchName)) {
+            currentCommit = currentCommit.parent;
+        }
+        return currentCommit;
+    }
+
+    public GitTree getStart() {
+        return start;
+    }
+
 
 
     public static class GitTree {
