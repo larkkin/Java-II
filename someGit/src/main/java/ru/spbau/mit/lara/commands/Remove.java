@@ -6,10 +6,12 @@ import ru.spbau.mit.lara.Shell;
 import ru.spbau.mit.lara.exceptions.ExitException;
 
 import java.io.IOException;
+import java.io.File;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
+import java.util.stream.Collectors;
 
 public class Remove implements Command {
     private Map<Path, Git> gitStorage;
@@ -49,11 +51,52 @@ public class Remove implements Command {
             return "HEAD is not on the top of the branch. " +
                     "Please, checkout the current branch to continue (note that modified can be overrided by checkout)";
         }
+        if (tokens.size() > 1) {
+            return removeFiles(tokens, rootDir, git);
+        }
+        String branchToRemove = tokens.get(0);
+        Set<String> branches;
         try {
-            Shell.removeFilesRelatively(tokens, Init.getIndexDir(rootDir));
+            branches = Files.list(Paths.get(rootDir.toString(), Init.gitDir))
+                    .filter(p -> p.toFile().isDirectory())
+                    .map(p -> Init.getGitDir(rootDir).relativize(p).toString())
+                    .filter(s -> s.startsWith("branch_"))
+                    .map(s -> s.substring("branch_".length()))
+                    .collect(Collectors.toSet());
+        } catch (IOException e) {
+            return "Something is wrong with the filesystem, got IOException while indexing branches";
+        }
+        if (!branches.contains(branchToRemove)) {
+            return removeFiles(Collections.singletonList(branchToRemove), rootDir, git);
+        }
+        return removeBranch(branchToRemove, rootDir, git);
+    }
+
+    private String removeBranch(String branchName, Path rootDir, Git git) {
+        if (branchName.equals(Git.MASTER)) {
+            return "Sorry, you can not remove the main branch";
+        }
+        if (branchName.equals(git.getCurrentBranch())) {
+            return "Sorry, you can not remove current branch";
+        }
+        try {
+            git.removeBranch(branchName);
+            Path dir = Paths.get(rootDir.toString(), Init.getBranchDir(branchName).toString());
+            Files.walk(dir)
+                    .sorted(Comparator.reverseOrder())
+                    .map(Path::toFile)
+                    .forEach(File::delete);
+        } catch (IOException e) {
+            return "Something is wrong with one of the files: caught IOExcepton while removing branch directory";
+        }
+        return "Removed branch " + branchName;
+    }
+    private String removeFiles(List<String> files, Path rootDir, Git git) {
+        try {
+            Shell.removeFilesRelatively(files, Init.getIndexDir(rootDir));
         } catch (IOException e) {
             return "Something is wrong with one of the files: caught IOExcepton while removing";
         }
-        return "Removed " + tokens.size() + " files";
+        return "Removed " + files.size() + " files";
     }
 }

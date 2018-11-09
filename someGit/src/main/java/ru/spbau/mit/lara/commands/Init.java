@@ -20,6 +20,9 @@ public class Init implements Command {
     public static String getCommitDir(int i, String branchName) {
         return Paths.get(gitDir, branch + branchName, "commit_" + String.valueOf(i)).toString();
     }
+    public static String getBranchDir(String branchName) {
+        return Paths.get(gitDir, branch + branchName).toString();
+    }
     public static Path getIndexDir(Path rootDir) {
         return Paths.get(rootDir.toString(), indexDir);
     }

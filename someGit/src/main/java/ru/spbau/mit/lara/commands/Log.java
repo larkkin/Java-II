@@ -18,12 +18,6 @@ public class Log implements Command{
 
     @Override
     public String execute(List<String> tokens) throws ExitException {
-        int revision;
-        if (tokens.size() < 1) {
-            revision = 1;
-        } else {
-            revision = Integer.valueOf(tokens.get(0));
-        }
         Path rootDir;
         try {
             rootDir = Shell.getRootOfDir(System.getProperty("user.dir"));
@@ -37,6 +31,12 @@ public class Log implements Command{
             gitStorage.put(rootDir, new Git(rootDir));
         }
         Git git = gitStorage.get(rootDir);
+        int revision;
+        if (tokens.size() < 1) {
+            revision = git.getHead().getId();
+        } else {
+            revision = Integer.valueOf(tokens.get(0));
+        }
         List<String> commit_descriptions = git.log(revision);
         return String.join("\n", commit_descriptions);
     }

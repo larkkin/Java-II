@@ -14,6 +14,7 @@ import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import java.util.concurrent.TimeUnit;
 
 import static java.nio.file.StandardCopyOption.REPLACE_EXISTING;
 
@@ -22,7 +23,7 @@ public class Git {
     private GitTree head;
     private Map<String, GitTree> headStorage;
     private Path rootDir;
-    private static final String MASTER = "master";
+    public static final String MASTER = "master";
 
     public Git(Path rootDir) {
         this.rootDir = rootDir;
@@ -233,6 +234,15 @@ public class Git {
         }
     }
 
+    public void removeBranch(String branchName) {
+        GitTree currentCommit = headStorage.get(branchName);
+        while (currentCommit.parent.currentBranch.equals(branchName)) {
+            currentCommit = currentCommit.parent;
+        }
+        currentCommit.next = null;
+        headStorage.remove(branchName);
+    }
+
     public Path getHeadDirPath() {
         return head.getDirPath();
     }
@@ -299,16 +309,20 @@ public class Git {
     public List<String> log(int revisionNumber) {
         List<String> res = new ArrayList<>();
         if (revisionNumber <= 0) {
-            revisionNumber = 1;
+            revisionNumber = head.currentCommitId;
         }
         if (revisionNumber > head.currentCommitId) {
-            return res;
+            revisionNumber = head.currentCommitId;
         }
         GitTree currentCommit = head;
-        while (currentCommit != null && currentCommit.currentCommitId >= revisionNumber) {
+        while (currentCommit != null && currentCommit.currentCommitId > revisionNumber) {
+            currentCommit = currentCommit.parent;
+        }
+        while (currentCommit != null && currentCommit.currentCommitId >= 1) {
             res.add(currentCommit.time + ",\n" + currentCommit.message + "\non branch: " + currentCommit.currentBranch);
             currentCommit = currentCommit.parent;
         }
+
         return res;
     }
     public void reset(int revisionNumber) throws GitException {
@@ -356,6 +370,10 @@ public class Git {
 
         public Path getDirPath() {
             return Paths.get(rootDir.toString(), Init.getCommitDir(currentCommitId, currentBranch));
+        }
+
+        public int getId() {
+            return currentCommitId;
         }
 
 
