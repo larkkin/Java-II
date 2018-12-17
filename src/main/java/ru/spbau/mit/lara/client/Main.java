@@ -75,6 +75,6 @@ public class Main {
     }
 
     private static void printUsage() {
-        System.out.println("Usage:\n\tlist | add <file_name> | get <file_id> | exit");
+        System.out.println("Usage:\n\tlist | add <file_name> | get <file_id> | end");
     }
 }
