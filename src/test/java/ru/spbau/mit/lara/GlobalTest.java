@@ -22,6 +22,7 @@ import java.util.Random;
 
 public class GlobalTest {
 
+    private File trackerFolder;
     private Tracker tracker;
     private File folder1;
     private Client client1;
@@ -34,7 +35,7 @@ public class GlobalTest {
 
     @Before
     public void setup() throws Exception {
-        File trackerFolder = tempFolder.newFolder();
+        trackerFolder = tempFolder.newFolder();
         tracker = new Tracker(trackerFolder.getPath());
 
         InetSocketAddress trackerAddress = new InetSocketAddress(InetAddress.getLocalHost(), Tracker.PORT);
@@ -89,6 +90,32 @@ public class GlobalTest {
         Assert.assertEquals(result, content);
     }
 
+    @Test
+    public void loadFileWithSaving() throws Exception {
+        String name = new BigInteger(100, random).toString(32);
+        File file = new File(folder1, name);
+
+        String content = new BigInteger(100000, random).toString(32);
+        FileUtils.writeStringToFile(file, content, Charset.defaultCharset());
+        client1.addFile(name);
+
+        InetSocketAddress trackerAddress = new InetSocketAddress(InetAddress.getLocalHost(), Tracker.PORT);
+        client1.end();
+        client2.end();
+        tracker.end();
+        tracker = new Tracker(trackerFolder.getPath());
+        client1 =  new Client(trackerAddress, 8881, folder1.getPath());
+        client2 =  new Client(trackerAddress, 8882, folder2.getPath());
+
+        List<FileDescription> files = client2.listFiles();
+        FileDescription last = files.get(files.size() - 1);
+        client2.getFile(last.getId());
+
+        File loaded = new File(folder2, name);
+        String result = FileUtils.readFileToString(loaded, Charset.defaultCharset());
+        Assert.assertEquals(result, content);
+    }
+
 
     @Test
     public void tenClients() throws Exception {
@@ -96,6 +123,7 @@ public class GlobalTest {
 
         List<File> folders = new ArrayList<>();
         List<Client> clients = new ArrayList<>();
+
         InetSocketAddress trackerAddress = new InetSocketAddress(InetAddress.getLocalHost(), Tracker.PORT);
 
         for (int i = 0; i < NUM_CLIENTS; i++) {
@@ -121,6 +149,5 @@ public class GlobalTest {
             client.end();
         }
     }
-
 
 }
