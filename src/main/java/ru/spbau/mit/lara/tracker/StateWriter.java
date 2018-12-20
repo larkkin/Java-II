@@ -33,7 +33,8 @@ public class StateWriter {
 
     public static void writeTrackerFilesList(String rootDir, List<FileDescription> files) throws IOException {
         File outputFile = new File(rootDir, TRACKER_FILES_PATH);
-        Gson gson = new GsonBuilder().setPrettyPrinting().create();
+        GsonBuilder builder = new GsonBuilder();
+        Gson gson = builder.setPrettyPrinting().create();
 
         try (PrintWriter writer = new PrintWriter(outputFile)) {
             String jsonStr = gson.toJson(files);

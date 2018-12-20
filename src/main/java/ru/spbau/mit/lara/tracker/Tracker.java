@@ -18,11 +18,31 @@ public class Tracker extends AbstractTorrentServer {
     private final List<FileDescription> filesList;
     private final Set<ClientDescription> clientsList = new HashSet<>();
 
+
     public static final class Type {
         public static final byte LIST = 1;
         public static final byte UPLOAD = 2;
         public static final byte SOURCES = 3;
         public static final byte UPDATE = 4;
+    }
+
+
+    public Tracker(String rootDir) throws IOException {
+        this.rootDir = rootDir;
+        filesList = StateWriter.readTrackerFilesList(rootDir);
+        maxUsedId = filesList.isEmpty() ? 0 : filesList.get(filesList.size() - 1).getId();
+        start(PORT);
+    }
+
+    public Tracker() throws IOException {
+        this(System.getProperty("user.dir"));
+    }
+
+
+    @Override
+    public void end() throws IOException {
+        super.end();
+        StateWriter.writeTrackerFilesList(rootDir, filesList);
     }
 
 
@@ -63,17 +83,6 @@ public class Tracker extends AbstractTorrentServer {
             } catch (IOException ignored) {
             }
         }
-    }
-
-    public Tracker(String rootDir) throws IOException {
-        this.rootDir = rootDir;
-        filesList = StateWriter.readTrackerFilesList(rootDir);
-        maxUsedId = filesList.isEmpty() ? 0 : filesList.get(filesList.size() - 1).getId();
-        start(PORT);
-    }
-
-    public Tracker() throws IOException {
-        this(System.getProperty("user.dir"));
     }
 
     private void listFiles(DataOutputStream output) throws IOException {

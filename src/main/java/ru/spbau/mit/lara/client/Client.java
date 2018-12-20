@@ -22,13 +22,17 @@ public class Client extends AbstractTorrentServer {
     private static final Logger LOGGER = Logger.getLogger(Client.class.getName());
 
     private static final int PERIOD = 1;
-    private static final int STAT = 1;
-    private static final int GET = 2;
-
     private final Map<Integer, P2PFile> files;
+
     private final FileWriter fileWriter;
     private final InetSocketAddress trackerAddress;
     private final String homeDir;
+
+    private static final class Type {
+        private static final int STAT = 1;
+        private static final int GET = 2;
+    }
+
 
     public Client(InetSocketAddress trackerAddress, int port)
             throws IOException {
@@ -67,7 +71,7 @@ public class Client extends AbstractTorrentServer {
                 synchronized (this) {
                     byte type = input.readByte();
                     switch (type) {
-                        case STAT: {
+                        case Type.STAT: {
                             int id = input.readInt();
                             P2PFile file = files.get(id);
                             Set<Integer> parts = file.getParts();
@@ -77,7 +81,7 @@ public class Client extends AbstractTorrentServer {
                             }
                             break;
                         }
-                        case GET: {
+                        case Type.GET: {
                             int id = input.readInt();
                             int part = input.readInt();
                             P2PFile file = files.get(id);
@@ -113,15 +117,6 @@ public class Client extends AbstractTorrentServer {
                 LOGGER.warning("Failed to update");
             }
         }));
-    }
-
-    public Collection<P2PFile> getFiles() {
-        return files.values();
-    }
-
-    public boolean containsFile(FileDescription info) {
-        P2PFile file = files.get(info.getId());
-        return file != null && file.isFull();
     }
 
     public void addFile(String name) throws IOException {
@@ -271,7 +266,7 @@ public class Client extends AbstractTorrentServer {
         }
 
         private int[] collectParts(DataInputStream input, DataOutputStream output) throws IOException {
-            output.writeByte(STAT);
+            output.writeByte(Type.STAT);
             output.writeInt(file.getId());
             int numParts = input.readInt();
             int[] parts = new int[numParts];
@@ -282,7 +277,7 @@ public class Client extends AbstractTorrentServer {
         }
 
         private void loadPart(DataInputStream input, DataOutputStream output, int part) throws IOException {
-            output.writeByte(GET);
+            output.writeByte(Type.GET);
             output.writeInt(file.getId());
             output.writeInt(part);
             fileWriter.writePart(file, part, input);
